@@ -16,40 +16,45 @@ def register(socketio: Any, manager: Any) -> None:
     """Register language and session event handlers."""
 
     @socketio.on("connect")
-    def on_connect() -> None:
+    def on_connect(*_args: Any, **_kwargs: Any) -> None:
         sid = request.sid  # type: ignore[attr-defined]
         logger.info("client connected: %s", sid)
         emit("hello", {"languages": LANGUAGES, "model": manager.model})
 
     @socketio.on("disconnect")
-    def on_disconnect() -> None:
+    def on_disconnect(*_args: Any, **_kwargs: Any) -> None:
         sid = request.sid  # type: ignore[attr-defined]
         logger.info("client disconnected: %s", sid)
         manager.stop(sid)
 
     @socketio.on("session_init")
-    def on_session_init(data: dict[str, Any]) -> None:
+    def on_session_init(data: Any = None, *_args: Any, **_kwargs: Any) -> None:
         sid = request.sid  # type: ignore[attr-defined]
+        if not isinstance(data, dict):
+            data = {}
         src = data.get("source", "auto")
-        tgt = data.get("target", "en")
+        tgt = data.get("target", "zh-TW")
         logger.info("[%s] session_init: source=%s, target=%s", sid, src, tgt)
         manager.start(sid, src, tgt)
 
     @socketio.on("set_languages")
-    def on_set_languages(data: dict[str, Any]) -> None:
+    def on_set_languages(data: Any = None, *_args: Any, **_kwargs: Any) -> None:
         sid = request.sid  # type: ignore[attr-defined]
+        if not isinstance(data, dict):
+            data = {}
         source = data.get("source", "auto")
-        target = data.get("target", "en")
+        target = data.get("target", "zh-TW")
         logger.info("[%s] set_languages: source=%s, target=%s", sid, source, target)
         manager.update_languages(sid, source, target)
 
     @socketio.on("reconnect")
-    def on_reconnect(data: dict[str, Any] | None = None) -> None:
+    def on_reconnect(data: Any = None, *_args: Any, **_kwargs: Any) -> None:
         """Handle auto-reconnect requests from SessionManager."""
         sid = request.sid  # type: ignore[attr-defined]
-        data = data or {}
+        if not isinstance(data, dict):
+            data = {}
         source = data.get("source", "auto")
-        target = data.get("target", "en")
+        target = data.get("target", "zh-TW")
         logger.info("[%s] reconnect event received (src=%s, tgt=%s)", sid, source, target)
         # 重新啟動 session
         manager.start(sid, source, target)
