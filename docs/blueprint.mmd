@@ -1,0 +1,35 @@
+%% 即時多國語言翻譯 Chatbot 系統藍圖
+%% 模型：gemini-3.1-flash-live-preview （Live API, push-to-talk 模式）
+%% 主代理：蘇培盛 ｜ 審核：皇后娘娘（烏拉那拉氏）
+flowchart LR
+    subgraph Browser[「瀏覽器 (前端 — 甄嬛 / 安陵容)」]
+        UI[UI 元件\nPTT 按鈕 / 波形 / 譯文卡 / 語言選單]
+        AW[AudioWorklet\nFloat32→Int16 PCM\n16kHz mono]
+        MIC[(麥克風\ngetUserMedia)]
+        SIO_C[Socket.IO Client]
+        UI -->|按住開始 / 放開結束| SIO_C
+        MIC --> AW --> SIO_C
+        SIO_C -->|顯示譯文 / 原文| UI
+    end
+
+    subgraph Server[「Flask 後端 (華妃)」]
+        SIO_S[Flask-SocketIO\nthreading mode]
+        BR[LiveBridge\nasyncio loop / sid]
+        QUEUE[[asyncio.Queue\n音訊封包]]
+        SIO_S -->|emit ptt_start / audio_chunk / ptt_end| BR
+        BR --> QUEUE
+    end
+
+    subgraph Gemini[「Google Gemini Live API」]
+        WS{{WSS BidiGenerateContent}}
+        MODEL[gemini-3.1-flash-live-preview\nresponse_modalities: TEXT\nmanual activity detection\ninput_audio_transcription: ON]
+        WS --- MODEL
+    end
+
+    SIO_C <-->|WebSocket / Socket.IO| SIO_S
+    QUEUE -->|send_realtime_input\naudio Blob 16kHz PCM| WS
+    WS -->|server_content\ninput_transcription / model_turn text| BR
+    BR -->|emit transcript / translation / status| SIO_S
+
+    classDef new fill:#fde68a,stroke:#92400e;
+    class MODEL,AW,BR new;

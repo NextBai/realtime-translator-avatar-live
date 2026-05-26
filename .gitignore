@@ -1,0 +1,61 @@
+# ---- Secrets ----
+.env
+*.pem
+*.key
+
+# ---- Python ----
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+venv/
+.pytest_cache/
+
+# ---- Editors ----
+.idea/
+.vscode/
+
+# ---- OS ----
+.DS_Store
+Thumbs.db
+
+# ---- Logs ----
+*.log
+
+# ---- Node ----
+node_modules/
+
+# ---- Build / Coverage ----
+dist/
+build/
+.coverage
+htmlcov/
+
+# ---- 本機臨時測試素材 ----
+scripts/_speech_*.wav
+scripts/_speech_*.raw
+scripts/__pycache__/
+
+# ---- Lighthouse 報告（可重新產出） ----
+docs/lighthouse/
+docs/lighthouse2/
+docs/lighthouse3/
+docs/lighthouse-avatar/
+docs/lighthouse-final/
+
+# ---- Avatar probe 暫存 ----
+static/avatars/_probe_*
+
+# ---- 設計稿截圖（保留 docs/blueprint.mmd 等正式文件） ----
+docs/screenshot-*.png
+docs/figma-design-v1*.png
+docs/ui-comparison-*.png
+docs/ui-redesign-v1-mobile.png
+docs/ui-redesign-v2-mobile.png
+docs/ui-with-data-mobile.png
+docs/ui-ptt-pressed.png
+docs/ui-lang-modal.png
+docs/avatar-*-preview.png
+docs/avatar-*-check.png
+docs/lang-modal.png

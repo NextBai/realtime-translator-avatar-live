@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0d0f1f" />
+  <meta name="description" content="即時多國語言翻譯 chatbot — 按住說話、放開即時翻譯，由 Gemini Live 提供低延遲 audio-to-audio 對話，搭配真人 Avatar 與口型同步。" />
+  <title>即時翻譯 · Avatar Live</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+TC:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ctext x='2' y='20' font-size='20'%3E🌐%3C/text%3E%3C/svg%3E" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}" />
+</head>
+<body>
+  <!-- 裝飾光暈 -->
+  <div class="bg-orbs" aria-hidden="true">
+    <span class="bg-orb bg-orb--purple"></span>
+    <span class="bg-orb bg-orb--cyan"></span>
+  </div>
+
+  <main class="app">
+    <!-- ============ Header ============ -->
+    <header class="app-header">
+      <div class="brand">
+        <div class="brand__mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"></circle>
+            <path d="M2 12h20"></path>
+            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+          </svg>
+        </div>
+        <div class="brand__text">
+          <h1 class="brand__title">即時翻譯</h1>
+          <p class="brand__subtitle"><span id="modelTag">Gemini Live</span> · 自動偵測 17 種語言</p>
+        </div>
+      </div>
+      <button id="themeBtn" class="ghost-btn ghost-btn--circle" type="button" aria-label="切換主題">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+        </svg>
+      </button>
+    </header>
+
+    <!-- ============ Avatar Stage（核心視覺） ============ -->
+    <section class="stage" aria-label="翻譯員 Avatar">
+      <div class="avatar-frame" id="avatarFrame">
+        <!-- ring：speaking 時的環形脈動 -->
+        <span class="avatar-ring" aria-hidden="true"></span>
+        <!-- 真人照片 -->
+        <img class="avatar-img" id="avatarImg" alt="" draggable="false" />
+        <!-- 口型同步 overlay：SVG 嘴形覆蓋在嘴部位置，由音量驅動 scaleY -->
+        <svg class="avatar-mouth" id="avatarMouth" viewBox="0 0 100 60" aria-hidden="true">
+          <defs>
+            <radialGradient id="mouthGrad" cx="50%" cy="50%" r="50%">
+              <stop offset="0%"  stop-color="#1a0a14" stop-opacity="0.85"/>
+              <stop offset="100%" stop-color="#000000" stop-opacity="0.95"/>
+            </radialGradient>
+          </defs>
+          <ellipse class="avatar-mouth__shape" cx="50" cy="30" rx="22" ry="6" fill="url(#mouthGrad)" />
+        </svg>
+        <!-- 語言徽章 -->
+        <div class="avatar-badge" id="avatarBadge">
+          <span class="avatar-badge__flag" id="avatarFlag">🇹🇼</span>
+          <span class="avatar-badge__lang" id="avatarLang">繁體中文</span>
+        </div>
+      </div>
+
+      <!-- 譯文顯示（核心應用） -->
+      <div class="translation-display" id="translationDisplay" aria-live="polite">
+        <p class="translation-display__transcript" id="liveTranscript"></p>
+        <p class="translation-display__text" id="liveTranslation">準備好就按住下方按鈕說話 ↓</p>
+      </div>
+    </section>
+
+    <!-- ============ Bottom Bar：語言切換 + PTT + 歷史 ============ -->
+    <section class="bottom-bar">
+      <!-- 語言切換 chip（只切目標語言） -->
+      <button id="targetLangBtn" class="lang-chip" type="button" aria-haspopup="dialog">
+        <span class="lang-chip__icon">🎯</span>
+        <span class="lang-chip__label">翻成</span>
+        <span class="lang-chip__value" id="targetLangValue">繁體中文</span>
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="6 9 12 15 18 9"></polyline>
+        </svg>
+      </button>
+
+      <!-- PTT 大按鈕 -->
+      <div class="ptt-wrap">
+        <span class="ptt__halo" aria-hidden="true"></span>
+        <button id="pttBtn" class="ptt" type="button" aria-pressed="false" aria-label="按住說話">
+          <span class="ptt__core" aria-hidden="true">
+            <svg class="ptt__icon" viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 1 0 6 0V5a3 3 0 0 0-3-3z"></path>
+              <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+              <line x1="12" y1="19" x2="12" y2="23"></line>
+              <line x1="8" y1="23" x2="16" y2="23"></line>
+            </svg>
+          </span>
+        </button>
+        <span class="ptt-hint" id="pttHint" aria-hidden="true">按住說話</span>
+      </div>
+
+      <!-- 歷史按鈕 -->
+      <button id="historyBtn" class="lang-chip lang-chip--icon" type="button" aria-haspopup="dialog" aria-label="翻譯歷史">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="10"></circle>
+          <polyline points="12 6 12 12 16 14"></polyline>
+        </svg>
+        <span class="lang-chip__count" id="historyCount" aria-hidden="true" hidden>0</span>
+      </button>
+    </section>
+  </main>
+
+  <!-- ============ Status pill ============ -->
+  <div class="status-pill" id="statusPill" role="status" aria-live="polite">
+    <span class="status-pill__dot"></span>
+    <span class="status-pill__text">連線中…</span>
+  </div>
+
+  <!-- ============ 隱藏的原生 select 給 a11y / 鍵盤 ============ -->
+  <select id="srcLang" class="visually-hidden" aria-hidden="true" tabindex="-1"></select>
+  <select id="tgtLang" class="visually-hidden" aria-hidden="true" tabindex="-1"></select>
+
+  <!-- ============ Language picker modal ============ -->
+  <div class="modal" id="langModal" hidden role="dialog" aria-modal="true" aria-labelledby="langModalTitle">
+    <div class="modal__backdrop" data-close></div>
+    <div class="modal__panel">
+      <header class="modal__head">
+        <h3 id="langModalTitle">選擇翻譯目標</h3>
+        <button class="ghost-btn ghost-btn--circle" type="button" data-close aria-label="關閉">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </header>
+      <ul class="modal__list" id="langModalList" role="listbox"></ul>
+    </div>
+  </div>
+
+  <!-- ============ History modal ============ -->
+  <div class="modal" id="historyModal" hidden role="dialog" aria-modal="true" aria-labelledby="historyModalTitle">
+    <div class="modal__backdrop" data-close></div>
+    <div class="modal__panel">
+      <header class="modal__head">
+        <h3 id="historyModalTitle">翻譯歷史</h3>
+        <button class="ghost-btn ghost-btn--circle" type="button" data-close aria-label="關閉">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </header>
+      <div class="modal__body" id="historyList">
+        <div class="empty-state">
+          <div class="empty-state__icon">💬</div>
+          <p class="muted">尚無翻譯紀錄</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ Bubble template ============ -->
+  <template id="bubbleTpl">
+    <article class="bubble">
+      <header class="bubble__head">
+        <span class="bubble__src-tag"></span>
+        <svg class="bubble__arrow" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="5" y1="12" x2="19" y2="12"></line>
+          <polyline points="12 5 19 12 12 19"></polyline>
+        </svg>
+        <span class="bubble__tgt-tag"></span>
+        <time class="bubble__time"></time>
+      </header>
+      <p class="bubble__transcript"></p>
+      <p class="bubble__translation"></p>
+      <footer class="bubble__foot">
+        <button class="bubble-btn bubble__copy" type="button">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+          </svg>
+          <span>複製</span>
+        </button>
+        <button class="bubble-btn bubble__speak" type="button">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+            <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+            <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
+          </svg>
+          <span>朗讀</span>
+        </button>
+      </footer>
+    </article>
+  </template>
+
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js" integrity="sha384-2huaZvOR9iDzHqslqwpR87isEmrfxqyWOF7hr7BY6KG0+hVKLoEXMPUJw3ynWuhO" crossorigin="anonymous"></script>
+  <script type="module" src="{{ url_for('static', filename='js/index.js') }}"></script>
+</body>
+</html>
